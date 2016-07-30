@@ -92,7 +92,7 @@ data CastStatus
   = CastAlreadyDownloaded
   | CastDownloaded Cast
 
-downloadCast :: forall e. DBConnection -> Cast -> Aff (db :: DBEffects, console :: CONSOLE, fs :: FS | e) CastStatus
+downloadCast :: forall e. DBConnection -> Cast -> Aff (db :: DBEffects, fs :: FS | e) CastStatus
 downloadCast conn cast = do
   exists <- (\rows -> 1 == length rows) <$> queryDB conn "SELECT 1 from downloads where link = ?" [cast.link]
   case exists of
@@ -102,7 +102,7 @@ downloadCast conn cast = do
       queryDB conn "INSERT INTO downloads (link, title, created) VALUES ($1, $2, datetime('now'));" [cast.link, cast.title]
       pure $ CastDownloaded cast
 
-downloadCasts :: forall e. DBConnection -> String -> Aff (ajax :: AJAX, fs :: FS, console :: CONSOLE, db :: DBEffects | e) (Array CastStatus)
+downloadCasts :: forall e. DBConnection -> String -> Aff (ajax :: AJAX, fs :: FS, db :: DBEffects | e) (Array CastStatus)
 downloadCasts conn url = do
   res :: AffjaxResponse String <- Affjax.get url
   let casts = getCasts res.response
