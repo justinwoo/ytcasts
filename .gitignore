@@ -9,3 +9,4 @@ config.json
 .psc-ide-port
 downloads/*
 !downloads/.gitkeep
+index.js
