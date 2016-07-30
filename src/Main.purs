@@ -115,7 +115,7 @@ main :: forall e.
 main = launchAff do
   config <- parseConfig <$> readTextFile UTF8 "./config.json"
   conn <- newDB "./data"
-  targetStatuses :: Array (Array CastStatus) <- for config.targets $ downloadCasts conn
+  targetStatuses <- for config.targets $ downloadCasts conn
   for_ targetStatuses $ reportTargetStatus
   closeDB conn
   where
