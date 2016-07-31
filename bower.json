@@ -11,7 +11,8 @@
     "purescript-aff": "^1.1.0",
     "purescript-affjax": "^1.2.0",
     "purescript-node-child-process": "^1.0.0",
-    "purescript-node-fs-aff": "^1.0.0"
+    "purescript-node-fs-aff": "^1.0.0",
+    "purescript-node-sqlite3": "^0.1.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^1.0.0"
