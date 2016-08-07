@@ -23,11 +23,11 @@ type Program e =
   | e
   )
 
-main :: forall e.
+mainExe :: forall e.
   Eff
     (Program (err :: EXCEPTION | e))
     (Canceler (Program e))
-main = launchAff do
+mainExe = launchAff do
   config <- parseConfig <$> readTextFile UTF8 "./config.json"
   conn <- newDB "./data"
   targetStatuses <- for config.targets $ downloadCasts conn

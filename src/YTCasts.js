@@ -26,7 +26,7 @@ exports.getCasts = function(string) {
 exports._runDownload = function (url, cb) {
   return function () {
     console.log('downloading', url);
-    exec('youtube-dl -o downloads/%\\(title\\)s.%\\(ext\\)s -x --audio-format mp3' + url, function (err) {
+    exec('youtube-dl -o downloads/%\\(title\\)s.%\\(ext\\)s -x --audio-format mp3 ' + url, function (err) {
       if (err) {
         throw err;
       } else {
