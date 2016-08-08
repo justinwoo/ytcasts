@@ -1,0 +1,3 @@
+rootProject.name = 'YTCClient'
+
+include ':app'

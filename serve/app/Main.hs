@@ -50,7 +50,7 @@ getCastDirList path = do
   where
     makeCast :: FilePath -> [Cast]
     makeCast x
-      | x == ".." || x == "." = mempty
+      | x `elem` [ "..", ".", ".gitkeep" ] = mempty
       | otherwise = pure $ Cast x ("/" ++ x)
 
 main :: IO ()
