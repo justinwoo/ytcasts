@@ -6,7 +6,10 @@ import {
   View,
   ListView,
   Linking,
-  Modal
+  Modal,
+  TextInput,
+  TouchableHighlight,
+  AsyncStorage
 } from 'react-native';
 
 type URL = string;
@@ -24,25 +27,57 @@ export default class YTCClient extends Component {
       castsDS: new ListView.DataSource({
         rowHasChanged: (a, b) => a !== b
       }),
-      showError: false
+      showError: false,
+      baseUrl: ''
     };
 
-    const baseUrl = 'http://localhost:3000';
+    AsyncStorage.getItem('baseUrl')
+      .then((savedBaseUrl) => {
+        this.setState({
+          baseUrl: savedBaseUrl || ''
+        })
+      });
 
-    fetch(`${baseUrl}/casts`)
-      .then((res) => res.json())
-      .then((casts) => this.setState({
-        castsDS: this.state.castsDS.cloneWithRows(casts)
-      }));
-
-    this._getHandleCastPress = (path: string) => () => {
-      Linking.openURL(`${baseUrl}${path}`)
+    this._fetchCasts = () => {
+      fetch(`${this.state.baseUrl}/casts`)
+        .then((res) => res.json())
+        .then((casts) => this.setState({
+          castsDS: this.state.castsDS.cloneWithRows(casts)
+        }))
         .catch(err => {
           this.setState({
             showError: true,
-            castClickError: err
+            errorMsg: "Did you even try to give me a real address?"
           })
         });
+    };
+
+    this._getHandleCastPress = (path: string) => () => {
+      Linking.openURL(`${this.state.baseUrl}${path}`)
+        .catch(err => {
+          this.setState({
+            showError: true,
+            errorMsg: "Holy shit, can you reallly not open a URL?"
+          })
+        });
+    };
+
+    this._handleDismissModal = () => this.setState({
+      showError: false
+    })
+
+    this._handleAddressEndEditing = (event) => {
+      const baseUrl =  event.nativeEvent.text;
+      AsyncStorage.setItem('baseUrl', baseUrl);
+      this.setState({
+        baseUrl
+      });
+    };
+  }
+
+  componentDidUpdate(prevProps, prevState) {
+    if (prevState.baseUrl !== this.state.baseUrl) {
+      this._fetchCasts();
     }
   }
 
@@ -51,10 +86,27 @@ export default class YTCClient extends Component {
       <View style={styles.container}>
         <Modal
           animationType='fade'
-          transparent={true}
+          transparent={false}
           visible={this.state.showError}>
-          <Text>Holy shit, can you reallly not open a URL?</Text>
+          <View style={{marginTop: 50}}>
+            <View style={styles.container}>
+              <Text style={styles.welcome}>{this.state.errorMsg}</Text>
+
+              <TouchableHighlight onPress={this._handleDismissModal}>
+                <Text style={styles.welcome}>Okay</Text>
+              </TouchableHighlight>
+
+            </View>
+          </View>
         </Modal>
+        <TextInput
+          style={styles.textInput}
+          autoCapitalize="none"
+          autoCorrect={false}
+          placeholder={this.state.baseUrl ? `using saved url: this.state.baseUrl` : "enter casts api address e.g. http://localhost:3000"}
+          onEndEditing={this._handleAddressEndEditing}
+          keyboardType="url"
+        />
         <Text style={styles.welcome}>
           YTCasts
         </Text>
@@ -83,6 +135,17 @@ const styles = StyleSheet.create({
     fontSize: 20,
     textAlign: 'center',
     margin: 10,
+  },
+  modal: {
+    justifyContent: 'center'
+  },
+  textInput: {
+    marginTop: 20,
+    height: 30,
+    borderWidth: 0.5,
+    borderColor: '#0f0f0f',
+    fontSize: 14,
+    padding: 5
   },
   cast: {
     justifyContent: 'center',
