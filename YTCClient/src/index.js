@@ -103,7 +103,7 @@ export default class YTCClient extends Component {
           style={styles.textInput}
           autoCapitalize="none"
           autoCorrect={false}
-          placeholder={this.state.baseUrl ? `using saved url: this.state.baseUrl` : "enter casts api address e.g. http://localhost:3000"}
+          placeholder={this.state.baseUrl ? `using saved url: ${this.state.baseUrl}` : "enter casts api address e.g. http://localhost:3000"}
           onEndEditing={this._handleAddressEndEditing}
           keyboardType="url"
         />
