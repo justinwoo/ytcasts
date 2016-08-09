@@ -49,7 +49,7 @@ getCastDirList :: FilePath -> IO [Cast]
 getCastDirList path = do
   files <- filter filterNonFiles <$> getDirectoryContents path
   casts <- makeCast `traverse` files
-  pure $ sortOn castTime casts
+  pure $ reverse $ sortOn castTime casts
   where
     makeCast :: FilePath -> IO Cast
     makeCast x = do
