@@ -3,11 +3,12 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
 
 import Data.Aeson
+import Data.List
+import Data.Time.Clock
 import Control.Monad.IO.Class
 import GHC.Generics
 import Servant
@@ -21,6 +22,7 @@ import System.IO
 data Cast = Cast
   { castTitle :: String
   , castPath :: FilePath
+  , castTime :: UTCTime
   }
   deriving (Show, Eq, Generic)
 
@@ -45,13 +47,18 @@ getCasts ctx =
 
 getCastDirList :: FilePath -> IO [Cast]
 getCastDirList path = do
-  files <- getDirectoryContents path
-  pure $ makeCast =<< files
+  files <- filter filterNonFiles <$> getDirectoryContents path
+  casts <- makeCast `traverse` files
+  pure $ sortOn castTime casts
   where
-    makeCast :: FilePath -> [Cast]
-    makeCast x
-      | x `elem` [ "..", ".", ".gitkeep" ] = mempty
-      | otherwise = pure $ Cast x ("/" ++ x)
+    makeCast :: FilePath -> IO Cast
+    makeCast x = do
+      let castPath = "/" ++ x
+      castTime <- getModificationTime (path ++ castPath)
+      pure $ Cast x castPath castTime
+
+    filterNonFiles :: FilePath -> Bool
+    filterNonFiles x = x `notElem` [ "..", ".", ".gitkeep" ]
 
 main :: IO ()
 main = do

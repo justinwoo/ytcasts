@@ -28,6 +28,7 @@ executable serve-exe
                      , transformers
                      , directory
                      , wai-middleware-static
+                     , time
   default-language:    Haskell2010
 
 test-suite serve-test
