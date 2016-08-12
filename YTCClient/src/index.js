@@ -19,8 +19,25 @@ type Cast = {
   castPath: URL
 };
 
+type YTCClientDefaultProps = void;
+
+type YTCClientProps = void;
+
+type YTCClientState = {
+  baseUrl: ?string,
+  castsDS: ListView.DataSource,
+  showError: boolean,
+  errorMsg: ?string
+}
+
 export default class YTCClient extends Component {
-  constructor(props) {
+  static defaultProps: YTCClientDefaultProps;
+
+  props: YTCClientProps;
+
+  state: YTCClientState;
+
+  constructor(props: YTCClientProps) {
     super(props);
 
     this.state = {
@@ -28,32 +45,55 @@ export default class YTCClient extends Component {
         rowHasChanged: (a, b) => a !== b
       }),
       showError: false,
-      baseUrl: ''
+      baseUrl: null,
+      errorMsg: null
     };
 
     AsyncStorage.getItem('baseUrl')
       .then((savedBaseUrl) => {
         this.setState({
-          baseUrl: savedBaseUrl || ''
+          baseUrl: savedBaseUrl
         })
       });
+  }
 
-    this._fetchCasts = () => {
-      fetch(`${this.state.baseUrl}/casts`)
-        .then((res) => res.json())
-        .then((casts) => this.setState({
-          castsDS: this.state.castsDS.cloneWithRows(casts)
-        }))
-        .catch(err => {
-          this.setState({
-            showError: true,
-            errorMsg: "Did you even try to give me a real address?"
-          })
-        });
-    };
+  _getUrl = (path: string) => {
+    const { baseUrl } = this.state;
+    if (!baseUrl) {
+      return;
+    }
+    let url = `${baseUrl}${path}`;
+    if (!/^http:\/\//.test(url)) {
+      url = `http://${url}`;
+    }
+    return url;
+  }
 
-    this._getHandleCastPress = (path: string) => () => {
-      Linking.openURL(`${this.state.baseUrl}${path}`)
+  _fetchCasts = () => {
+    const url = this._getUrl('/casts');
+    if (!url) {
+      return;
+    }
+    fetch(url)
+      .then((res) => res.json())
+      .then((casts) => this.setState({
+        castsDS: this.state.castsDS.cloneWithRows(casts)
+      }))
+      .catch(err => {
+        this.setState({
+          showError: true,
+          errorMsg: "Did you even try to give me a real address?"
+        })
+      });
+  };
+
+  _getHandleCastPress = (path: string) => {
+    return () => {
+      const url = this._getUrl(path);
+      if (!url) {
+        return;
+      }
+      Linking.openURL(url)
         .catch(err => {
           this.setState({
             showError: true,
@@ -61,24 +101,30 @@ export default class YTCClient extends Component {
           })
         });
     };
-
-    this._handleDismissModal = () => this.setState({
-      showError: false
-    })
-
-    this._handleAddressEndEditing = (event) => {
-      const baseUrl =  event.nativeEvent.text;
-      AsyncStorage.setItem('baseUrl', baseUrl);
-      this.setState({
-        baseUrl
-      });
-    };
   }
 
-  componentDidUpdate(prevProps, prevState) {
+  _handleDismissModal = () => {
+    this.setState({
+      showError: false
+    })
+  }
+
+  _handleAddressEndEditing = (event: any) => {
+    const baseUrl =  event.nativeEvent.text;
+    AsyncStorage.setItem('baseUrl', baseUrl);
+    this.setState({
+      baseUrl
+    });
+  }
+
+  componentDidUpdate(prevProps: YTCClientProps, prevState: YTCClientState) {
     if (prevState.baseUrl !== this.state.baseUrl) {
       this._fetchCasts();
     }
+  }
+
+  componentDidMount() {
+    this._fetchCasts();
   }
 
   render() {
