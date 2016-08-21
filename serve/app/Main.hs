@@ -3,20 +3,26 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 module Main where
 
+import Control.Lens
+import Control.Monad.IO.Class
 import Data.Aeson
 import Data.List
+import Data.Swagger hiding (port)
 import Data.Time.Clock
-import Control.Monad.IO.Class
+import Data.Typeable
 import GHC.Generics
-import Servant
-import System.Directory
-import System.Environment
+import Network.Wai
 import Network.Wai.Handler.Warp
 import Network.Wai.Middleware.Cors
 import Network.Wai.Middleware.Static
+import Servant
+import Servant.Swagger
+import System.Directory
+import System.Environment
 import System.IO
 
 data Cast = Cast
@@ -24,13 +30,27 @@ data Cast = Cast
   , castPath :: FilePath
   , castTime :: UTCTime
   }
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Generic, Typeable)
 
 instance ToJSON Cast
 instance FromJSON Cast
+instance ToSchema Cast
 
 type CastAPI
   = "casts" :> Get '[JSON] [Cast]
+
+type SwaggerAPI = "swagger.json" :> Get '[JSON] Swagger
+
+type API = SwaggerAPI :<|> CastAPI
+
+api :: Proxy API
+api = Proxy
+
+castSwagger :: Swagger
+castSwagger = toSwagger castApi
+  & info.title .~ "Cast API"
+  & info.version .~ "1.0"
+  & info.description ?~ "YTCasts API"
 
 castApi :: Proxy CastAPI
 castApi = Proxy
@@ -38,8 +58,7 @@ castApi = Proxy
 data AppContext = AppContext { contextPath :: FilePath }
 
 getServer :: AppContext -> Server CastAPI
-getServer =
-  getCasts
+getServer = getCasts
 
 getCasts :: AppContext -> Handler [Cast]
 getCasts ctx =
@@ -60,18 +79,25 @@ getCastDirList path = do
     filterNonFiles :: FilePath -> Bool
     filterNonFiles x = x `notElem` [ "..", ".", ".gitkeep" ]
 
+server :: FilePath -> IO (Server API)
+server path = do
+  let ctx = AppContext path
+  pure $
+    pure castSwagger
+    :<|> getServer ctx
+
+app :: IO Application
+app = do
+  path <- getEnv "YTCASTS_HOME"
+  staticPolicy (addBase path)
+    . simpleCors
+    . serve api <$> server path
+
 main :: IO ()
 main = do
-  path <- getEnv "YTCASTS_HOME"
-  let ctx = AppContext path
-      port = 3000
+  let port = 3000
       settings =
           setPort port $
           setBeforeMainLoop (hPutStrLn stderr ("listening on port " ++ show port))
           defaultSettings
-      server = getServer ctx
-      app
-        = staticPolicy (addBase path)
-        . simpleCors
-        $ serve castApi server
-  runSettings settings app
+  runSettings settings =<< app

@@ -24,11 +24,14 @@ executable serve-exe
                      , warp
                      , servant
                      , servant-server
+                     , servant-swagger
+                     , swagger2
                      , aeson
                      , transformers
                      , directory
                      , wai-middleware-static
                      , time
+                     , lens
   default-language:    Haskell2010
 
 test-suite serve-test
