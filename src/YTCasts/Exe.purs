@@ -30,13 +30,5 @@ mainExe :: forall e.
 mainExe = launchAff do
   config <- parseConfig <$> readTextFile UTF8 "./config.json"
   conn <- newDB "./data"
-  targetStatuses <- for config.targets $ downloadCasts conn
-  for_ targetStatuses $ reportTargetStatus
+  for_ config.targets $ downloadCasts conn
   closeDB conn
-  where
-    reportTargetStatus =
-      traverse_ reportStatus
-    reportStatus status =
-      case status of
-        CastAlreadyDownloaded -> pure unit
-        CastDownloaded cast -> log $ "downloaded " <> cast.title <> " from " <> cast.link

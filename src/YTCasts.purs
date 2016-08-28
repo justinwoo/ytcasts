@@ -3,7 +3,9 @@ module YTCasts where
 import Prelude
 import Network.HTTP.Affjax as Affjax
 import Control.Monad.Aff (Aff, makeAff)
+import Control.Monad.Aff.Console (log)
 import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Console (CONSOLE)
 import Data.Array (length)
 import Data.Function.Uncurried (Fn2, runFn2)
 import Data.Traversable (for)
@@ -49,7 +51,21 @@ data CastStatus
   = CastAlreadyDownloaded
   | CastDownloaded Cast
 
-downloadCast :: forall e. DBConnection -> Cast -> Aff (db :: DBEffects, fs :: FS | e) CastStatus
+reportStatus :: forall e. Cast -> Aff (console :: CONSOLE | e) Unit
+reportStatus cast =
+  log $ "downloaded " <> cast.title <> " from " <> cast.link
+
+downloadCast ::
+  forall e.
+  DBConnection ->
+  Cast ->
+  Aff
+    ( console :: CONSOLE
+    , db :: DBEffects
+    , fs :: FS
+    | e
+    )
+    CastStatus
 downloadCast conn cast = do
   exists <- (\rows -> 1 == length rows) <$> queryDB conn "SELECT 1 from downloads where link = ?" [cast.link]
   case exists of
@@ -57,9 +73,21 @@ downloadCast conn cast = do
     false -> do
       runDownload cast.link
       queryDB conn "INSERT INTO downloads (link, title, created) VALUES ($1, $2, datetime('now'));" [cast.link, cast.title]
+      reportStatus cast
       pure $ CastDownloaded cast
 
-downloadCasts :: forall e. DBConnection -> String -> Aff (ajax :: AJAX, fs :: FS, db :: DBEffects | e) (Array CastStatus)
+downloadCasts ::
+  forall e.
+  DBConnection ->
+  String ->
+  Aff
+    ( ajax :: AJAX
+    , console :: CONSOLE
+    , db :: DBEffects
+    , fs :: FS
+    | e
+    )
+    (Array CastStatus)
 downloadCasts conn url = do
   res :: AffjaxResponse String <- Affjax.get url
   let casts = getCasts res.response
