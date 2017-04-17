@@ -7,14 +7,18 @@
     "output"
   ],
   "dependencies": {
-    "purescript-console": "^1.0.0",
-    "purescript-aff": "^1.1.0",
-    "purescript-affjax": "^1.2.0",
-    "purescript-node-child-process": "^1.0.0",
-    "purescript-node-fs-aff": "^1.0.0",
-    "purescript-node-sqlite3": "^0.1.0"
+    "purescript-console": "^3.0.0",
+    "purescript-aff": "^3.0.0",
+    "purescript-affjax": "^4.0.0",
+    "purescript-node-child-process": "^4.0.0",
+    "purescript-node-fs-aff": "^4.0.0",
+    "purescript-node-sqlite3": "^0.5.0",
+    "purescript-foreign-generic": "^4.1.0",
+    "purescript-lenient-html-parser": "^0.2.0",
+    "purescript-node-he": "^0.1.0",
+    "purescript-node-process": "^4.0.0"
   },
   "devDependencies": {
-    "purescript-psci-support": "^1.0.0"
+    "purescript-psci-support": "^3.0.0"
   }
 }
