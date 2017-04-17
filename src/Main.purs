@@ -8,14 +8,18 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION, Error)
 import Control.Monad.Except (runExcept)
-import Data.Array (length)
+import Data.Array (find, foldMap, length)
 import Data.Either (Either(..))
 import Data.Foldable (for_)
 import Data.Foreign.Class (class Decode)
 import Data.Foreign.Generic (decodeJSON, defaultOptions, genericDecode)
 import Data.Generic.Rep (class Generic)
 import Data.Maybe (Maybe(..))
+import Data.Monoid (mempty)
+import Data.String (Pattern(..), contains, trim)
+import Data.String.HtmlElements (decode)
 import Data.Traversable (for)
+import LenientHtmlParser (Attribute(..), Name(..), Tag(..), TagName(..), Value(..), parseTags)
 import Network.HTTP.Affjax (AJAX, URL)
 import Node.ChildProcess (CHILD_PROCESS, StdIOBehaviour(..), defaultSpawnOptions, onError, onExit, spawn, toStandardError)
 import Node.Encoding (Encoding(..))
@@ -89,25 +93,26 @@ downloadCast conn cast = do
           log $ "cast download failed of " <> cast.title <> " " <> show e
           pure $ CastDownloadFailed e cast
 
-foreign import _getCasts :: HTMLString -> Array Cast
 getCasts :: HTMLString -> Either ParseError (Array Cast)
-getCasts = pure <<< _getCasts
--- getCasts s = do
---   tags <- parseTags s
---   pure $ foldMap getLinks tags
---   where
---     getLinks (TagOpen (TagName "a") attrs) = do
---       case {title: _, link: _}
---         <$> getAttr "title" attrs
---         <*> getAttr "href" attrs
---         of
---         Just a -> pure a
---         Nothing -> mempty
---     getLinks _ = mempty
---     getAttr match xs = getValue <$> find matchName xs
---       where
---         matchName (Attribute (Name name) _) = match == name
---         getValue (Attribute _ (Value x)) = decode <<< trim $ x
+getCasts s = do
+  tags <- parseTags s
+  pure $ foldMap getLinks tags
+  where
+    getLinks (TagOpen (TagName "a") attrs) = do
+      case contains (Pattern "yt-uix-tile-link") <$> (getAttr "class" attrs) of
+        Just true -> do
+          case {title: _, link: _}
+            <$> getAttr "title" attrs
+            <*> ((<>) "https://www.youtube.com" <$> getAttr "href" attrs)
+            of
+            Just a -> pure a
+            Nothing -> mempty
+        _ -> mempty
+    getLinks _ = mempty
+    getAttr match xs = getValue <$> find matchName xs
+      where
+        matchName (Attribute (Name name) _) = match == name
+        getValue (Attribute _ (Value x)) = decode <<< trim $ x
 
 downloadCasts ::
   forall e.
