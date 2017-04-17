@@ -7,7 +7,6 @@ import Control.Monad.Aff.Console (errorShow, log)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION, Error)
-import Control.Monad.Eff.Ref (REF, newRef)
 import Control.Monad.Except (runExcept)
 import Data.Array (length)
 import Data.Either (Either(..))
@@ -35,13 +34,11 @@ type Param = String
 runDownload :: forall e.
   URL ->
   Aff
-    ( ref :: REF
-    , cp :: CHILD_PROCESS
+    ( cp :: CHILD_PROCESS
     | e
     )
     (Either Error String)
 runDownload url = makeAff \e s -> do
-  ref <- newRef ""
   process <- spawn "youtube-dl"
              [ "-o"
              , "downloads/%(title)s.%(ext)s"
@@ -130,7 +127,6 @@ downloadCasts conn url = do
 type Program e =
   ( ajax :: AJAX
   , console :: CONSOLE
-  , ref :: REF
   , cp :: CHILD_PROCESS
   , fs :: FS
   , db :: DBEffects
