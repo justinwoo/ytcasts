@@ -83,11 +83,13 @@ downloadCast conn cast = do
   case exists of
     true -> pure CastAlreadyDownloaded
     false -> do
+      let info = cast.title <> " from " <> cast.link
+      log $ "downloading: " <> info
       result <- runDownload cast.link
       case result of
         Right _ -> do
           _ <- queryDB conn "INSERT INTO downloads (link, title, created) VALUES ($1, $2, datetime('now'));" [cast.link, cast.title]
-          log $ "downloaded " <> cast.title <> " from " <> cast.link
+          log $ "  downloaded: " <> info
           pure $ CastDownloaded cast
         Left e -> do
           log $ "cast download failed of " <> cast.title <> " " <> show e
