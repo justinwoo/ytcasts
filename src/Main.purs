@@ -1,26 +1,28 @@
 module Main where
 
 import Prelude
-import Network.HTTP.Affjax as Affjax
+
 import Control.Monad.Aff (Aff, Canceler, launchAff, makeAff)
 import Control.Monad.Aff.Console (errorShow, log)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION, Error)
 import Control.Monad.Except (runExcept)
-import Data.Array (find, foldMap, length)
+import Data.Array (find, head, length, snoc)
 import Data.Either (Either(..))
 import Data.Foldable (for_)
 import Data.Foreign.Class (class Decode)
 import Data.Foreign.Generic (decodeJSON, defaultOptions, genericDecode)
 import Data.Generic.Rep (class Generic)
+import Data.List ((:))
 import Data.Maybe (Maybe(..))
 import Data.Monoid (mempty)
-import Data.String (Pattern(..), contains, trim)
+import Data.String (Pattern(..), contains, split, trim)
 import Data.String.HtmlElements (decode)
 import Data.Traversable (for)
 import LenientHtmlParser (Attribute(..), Name(..), Tag(..), TagName(..), Value(..), parseTags)
 import Network.HTTP.Affjax (AJAX, URL)
+import Network.HTTP.Affjax as Affjax
 import Node.ChildProcess (CHILD_PROCESS, StdIOBehaviour(..), defaultSpawnOptions, onError, onExit, spawn, toStandardError)
 import Node.Encoding (Encoding(..))
 import Node.FS (FS)
@@ -98,19 +100,16 @@ downloadCast conn cast = do
 getCasts :: HTMLString -> Either ParseError (Array Cast)
 getCasts s = do
   tags <- parseTags s
-  pure $ foldMap getLinks tags
+  pure $ getLinks mempty tags
   where
-    getLinks (TagOpen (TagName "a") attrs) = do
-      case contains (Pattern "yt-uix-tile-link") <$> (getAttr "class" attrs) of
-        Just true -> do
-          case {title: _, link: _}
-            <$> getAttr "title" attrs
-            <*> ((<>) "https://www.youtube.com" <$> getAttr "href" attrs)
-            of
-            Just a -> pure a
-            Nothing -> mempty
-        _ -> mempty
-    getLinks _ = mempty
+    getLinks acc (TagOpen (TagName "a") attrs : TNode tnode : TagClose (TagName "a") : xs)
+      | Just true <- contains (Pattern "yt-uix-tile-link") <$> (getAttr "class" attrs)
+      , title <- trim tnode
+      , Just (Just href) <- head <<< split (Pattern "&") <$> getAttr "href" attrs
+      , link <- "https://www.youtube.com" <> href = getLinks (snoc acc {title, link}) xs
+      | otherwise = getLinks acc xs
+    getLinks acc (_ : xs) = getLinks acc xs
+    getLinks acc _ = acc
     getAttr match xs = getValue <$> find matchName xs
       where
         matchName (Attribute (Name name) _) = match == name
@@ -149,6 +148,7 @@ main = launchAff do
   case runExcept decoded of
     Right (Config config) -> do
       conn <- newDB "./data"
+      _ <- queryDB conn "CREATE TABLE IF NOT EXISTS downloads (link varchar(20) primary key unique, title varchar, created datetime);" []
       for_ config.targets $ (downloadCasts conn)
       closeDB conn
     Left e -> do
