@@ -17,19 +17,24 @@ import Data.Generic.Rep (class Generic)
 import Data.List ((:))
 import Data.Maybe (Maybe(..))
 import Data.Monoid (mempty)
+import Data.Newtype (class Newtype, unwrap)
 import Data.String (Pattern(..), contains, split, trim)
 import Data.String.HtmlElements (decode)
 import Data.Traversable (for)
 import LenientHtmlParser (Attribute(..), Name(..), Tag(..), TagName(..), Value(..), parseTags)
-import Network.HTTP.Affjax (AJAX, URL)
-import Network.HTTP.Affjax as Affjax
+import Milkis (defaultFetchOptions, fetch, text)
 import Node.ChildProcess (CHILD_PROCESS, StdIOBehaviour(..), defaultSpawnOptions, onError, onExit, spawn, toStandardError)
 import Node.Encoding (Encoding(..))
 import Node.FS (FS)
 import Node.FS.Aff (readTextFile)
+import Node.HTTP (HTTP)
 import SQLite3 (DBConnection, DBEffects, closeDB, newDB, queryDB)
 import Text.Parsing.StringParser (ParseError)
 import Unsafe.Coerce (unsafeCoerce)
+
+newtype Url = Url String
+derive instance newtypeUrl :: Newtype Url _
+derive newtype instance decodeUrl :: Decode Url
 
 type HTMLString = String
 
@@ -38,13 +43,13 @@ type Query = String
 type Param = String
 
 runDownload :: forall e.
-  URL ->
+  Url ->
   Aff
     ( cp :: CHILD_PROCESS
     | e
     )
     (Either Error String)
-runDownload url = makeAff \e s -> do
+runDownload (Url url) = makeAff \e s -> do
   process <- spawn "youtube-dl"
              [ "-o"
              , "downloads/%(title)s.%(ext)s"
@@ -58,14 +63,14 @@ runDownload url = makeAff \e s -> do
   onExit process $ const (s $ Right "success?")
 
 newtype Config = Config
-  { targets :: Array URL }
+  { targets :: Array Url }
 derive instance genericConfig :: Generic Config _
 instance decodeConfig :: Decode Config where
   decode = genericDecode $ defaultOptions { unwrapSingleConstructors = true }
 
 type Cast =
   { title :: String
-  , link :: URL
+  , link :: Url
   }
 
 data CastStatus
@@ -81,16 +86,16 @@ downloadCast ::
     (Program e)
     CastStatus
 downloadCast conn cast = do
-  exists <- (\rows -> 1 == length (unsafeCoerce rows)) <$> queryDB conn "SELECT 1 from downloads where link = ?" [cast.link]
+  exists <- (\rows -> 1 == length (unsafeCoerce rows)) <$> queryDB conn "SELECT 1 from downloads where link = ?" [unwrap cast.link]
   case exists of
     true -> pure CastAlreadyDownloaded
     false -> do
-      let info = cast.title <> " from " <> cast.link
+      let info = cast.title <> " from " <> unwrap cast.link
       log $ "downloading: " <> info
       result <- runDownload cast.link
       case result of
         Right _ -> do
-          _ <- queryDB conn "INSERT INTO downloads (link, title, created) VALUES ($1, $2, datetime('now'));" [cast.link, cast.title]
+          _ <- queryDB conn "INSERT INTO downloads (link, title, created) VALUES ($1, $2, datetime('now'));" [unwrap cast.link, cast.title]
           log $ "  downloaded: " <> info
           pure $ CastDownloaded cast
         Left e -> do
@@ -106,7 +111,7 @@ getCasts s = do
       | Just true <- contains (Pattern "yt-uix-tile-link") <$> (getAttr "class" attrs)
       , title <- trim tnode
       , Just (Just href) <- head <<< split (Pattern "&") <$> getAttr "href" attrs
-      , link <- "https://www.youtube.com" <> href = getLinks (snoc acc {title, link}) xs
+      , link <- Url $ "https://www.youtube.com" <> href = getLinks (snoc acc {title, link}) xs
       | otherwise = getLinks acc xs
     getLinks acc (_ : xs) = getLinks acc xs
     getLinks acc _ = acc
@@ -118,20 +123,20 @@ getCasts s = do
 downloadCasts ::
   forall e.
   DBConnection ->
-  String ->
+  Url ->
   Aff
     (Program e)
     (Array CastStatus)
-downloadCasts conn url = do
-  res <- Affjax.get url
-  case getCasts res.response of
+downloadCasts conn (Url url) = do
+  res <- text =<< fetch url defaultFetchOptions
+  case getCasts res of
     Right casts -> for casts $ downloadCast conn
     Left e -> do
       errorShow e
       pure []
 
 type Program e =
-  ( ajax :: AJAX
+  ( http :: HTTP
   , console :: CONSOLE
   , cp :: CHILD_PROCESS
   , fs :: FS

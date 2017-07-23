@@ -10,3 +10,4 @@ config.json
 downloads/*
 !downloads/.gitkeep
 index.js
+yarn.lock

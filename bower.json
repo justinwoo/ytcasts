@@ -16,7 +16,8 @@
     "purescript-foreign-generic": "^4.2.0",
     "purescript-lenient-html-parser": "^0.3.1",
     "purescript-node-he": "^0.1.0",
-    "purescript-node-process": "^4.0.0"
+    "purescript-node-process": "^4.0.0",
+    "purescript-milkis": "^0.1.1"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0"
