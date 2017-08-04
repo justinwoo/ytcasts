@@ -8,6 +8,7 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION, Error)
 import Control.Monad.Except (runExcept)
+import Control.Monad.Rec.Class (Step(..), tailRec)
 import Data.Array (find, head, length, snoc)
 import Data.Either (Either(..))
 import Data.Foldable (for_)
@@ -21,6 +22,7 @@ import Data.Newtype (class Newtype, unwrap)
 import Data.String (Pattern(..), contains, split, trim)
 import Data.String.HtmlElements (decode)
 import Data.Traversable (for)
+import Data.Tuple (Tuple(..))
 import LenientHtmlParser (Attribute(..), Name(..), Tag(..), TagName(..), Value(..), parseTags)
 import Milkis (defaultFetchOptions, fetch, text)
 import Node.ChildProcess (CHILD_PROCESS, StdIOBehaviour(..), defaultSpawnOptions, onError, onExit, spawn, toStandardError)
@@ -105,16 +107,16 @@ downloadCast conn cast = do
 getCasts :: HTMLString -> Either ParseError (Array Cast)
 getCasts s = do
   tags <- parseTags s
-  pure $ getLinks mempty tags
+  pure $ tailRec getLinks (Tuple mempty tags)
   where
-    getLinks acc (TagOpen (TagName "a") attrs : TNode tnode : TagClose (TagName "a") : xs)
+    getLinks (Tuple acc (TagOpen (TagName "a") attrs : TNode tnode : TagClose (TagName "a") : xs))
       | Just true <- contains (Pattern "yt-uix-tile-link") <$> (getAttr "class" attrs)
       , title <- trim tnode
       , Just (Just href) <- head <<< split (Pattern "&") <$> getAttr "href" attrs
-      , link <- Url $ "https://www.youtube.com" <> href = getLinks (snoc acc {title, link}) xs
-      | otherwise = getLinks acc xs
-    getLinks acc (_ : xs) = getLinks acc xs
-    getLinks acc _ = acc
+      , link <- Url $ "https://www.youtube.com" <> href = Loop (Tuple (snoc acc {title, link}) xs)
+      | otherwise = Loop (Tuple acc xs)
+    getLinks (Tuple acc (_ : xs)) = Loop (Tuple acc xs)
+    getLinks (Tuple acc _) = Done acc
     getAttr match xs = getValue <$> find matchName xs
       where
         matchName (Attribute (Name name) _) = match == name
