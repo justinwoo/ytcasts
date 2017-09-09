@@ -17,7 +17,8 @@
     "purescript-lenient-html-parser": "^1.0.0",
     "purescript-node-he": "^0.1.0",
     "purescript-node-process": "^5.0.0",
-    "purescript-milkis": "^0.2.0"
+    "purescript-milkis": "^0.2.0",
+    "purescript-simple-json": "^0.7.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^3.0.0"

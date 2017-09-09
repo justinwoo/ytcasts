@@ -12,9 +12,6 @@ import Control.Monad.Rec.Class (Step(..), tailRec)
 import Data.Array (find, head, length, snoc)
 import Data.Either (Either(..))
 import Data.Foldable (for_)
-import Data.Foreign.Class (class Decode)
-import Data.Foreign.Generic (decodeJSON, defaultOptions, genericDecode)
-import Data.Generic.Rep (class Generic)
 import Data.List ((:))
 import Data.Maybe (Maybe(..))
 import Data.Monoid (mempty)
@@ -31,12 +28,13 @@ import Node.FS (FS)
 import Node.FS.Aff (readTextFile)
 import Node.HTTP (HTTP)
 import SQLite3 (DBConnection, DBEffects, closeDB, newDB, queryDB)
+import Simple.JSON (class ReadForeign, readJSON)
 import Text.Parsing.StringParser (ParseError)
 import Unsafe.Coerce (unsafeCoerce)
 
 newtype Url = Url String
 derive instance newtypeUrl :: Newtype Url _
-derive newtype instance decodeUrl :: Decode Url
+derive newtype instance readForeignUrl :: ReadForeign Url
 
 type HTMLString = String
 
@@ -64,11 +62,8 @@ runDownload (Url url) = makeAff \e s -> do
   onError process $ toStandardError >>> Left >>> s
   onExit process $ const (s $ Right "success?")
 
-newtype Config = Config
+type Config =
   { targets :: Array Url }
-derive instance genericConfig :: Generic Config _
-instance decodeConfig :: Decode Config where
-  decode = genericDecode $ defaultOptions { unwrapSingleConstructors = true }
 
 type Cast =
   { title :: String
@@ -151,9 +146,9 @@ main :: forall e.
     (Program (exception :: EXCEPTION | e))
     (Canceler (Program e))
 main = launchAff do
-  decoded <- decodeJSON <$> readTextFile UTF8 "./config.json"
+  decoded <- readJSON <$> readTextFile UTF8 "./config.json"
   case runExcept decoded of
-    Right (Config config) -> do
+    Right (config :: Config) -> do
       conn <- newDB "./data"
       _ <- queryDB conn "CREATE TABLE IF NOT EXISTS downloads (link varchar(20) primary key unique, title varchar, created datetime);" []
       for_ config.targets $ (downloadCasts conn)
