@@ -2,12 +2,11 @@ module Main where
 
 import Prelude
 
-import Control.Monad.Aff (Aff, Canceler, launchAff, makeAff)
+import Control.Monad.Aff (Aff, launchAff_, makeAff)
 import Control.Monad.Aff.Console (errorShow, log)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION, Error)
-import Control.Monad.Except (runExcept)
 import Control.Monad.Rec.Class (Step(..), tailRec)
 import Data.Array (find, head, length, snoc)
 import Data.Either (Either(..))
@@ -49,7 +48,8 @@ runDownload :: forall e.
     | e
     )
     (Either Error String)
-runDownload (Url url) = makeAff \e s -> do
+runDownload (Url url) = makeAff \cb -> do
+  let cb' = cb <<< pure
   process <- spawn "youtube-dl"
              [ "-o"
              , "downloads/%(title)s.%(ext)s"
@@ -59,8 +59,9 @@ runDownload (Url url) = makeAff \e s -> do
              , url
              ]
              $ defaultSpawnOptions { stdio = [Just Pipe] }
-  onError process $ toStandardError >>> Left >>> s
-  onExit process $ const (s $ Right "success?")
+  onError process $ toStandardError >>> Left >>> cb'
+  onExit process $ const (cb' $ Right "success?")
+  pure mempty
 
 type Config =
   { targets :: Array Url }
@@ -144,10 +145,10 @@ type Program e =
 main :: forall e.
   Eff
     (Program (exception :: EXCEPTION | e))
-    (Canceler (Program e))
-main = launchAff do
+    Unit
+main = launchAff_ do
   decoded <- readJSON <$> readTextFile UTF8 "./config.json"
-  case runExcept decoded of
+  case decoded of
     Right (config :: Config) -> do
       conn <- newDB "./data"
       _ <- queryDB conn "CREATE TABLE IF NOT EXISTS downloads (link varchar(20) primary key unique, title varchar, created datetime);" []

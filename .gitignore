@@ -11,3 +11,4 @@ downloads/*
 !downloads/.gitkeep
 index.js
 yarn.lock
+.psc-package

@@ -1,0 +1,20 @@
+{
+    "name": "ytcasts",
+    "set": "aff-4.0-27-Oct-2017",
+    "source": "https://github.com/justinwoo/package-sets.git",
+    "depends": [
+        "node-he",
+        "lenient-html-parser",
+        "node-process",
+        "milkis",
+        "simple-json",
+        "foreign-generic",
+        "node-sqlite3",
+        "node-fs-aff",
+        "node-child-process",
+        "affjax",
+        "aff",
+        "console",
+        "prelude"
+    ]
+}
