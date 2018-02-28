@@ -1,6 +1,6 @@
 {
     "name": "ytcasts",
-    "set": "poronkusta",
+    "set": "mandel",
     "source": "https://github.com/justinwoo/package-sets.git",
     "depends": [
         "node-he",
