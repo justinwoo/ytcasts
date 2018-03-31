@@ -2,11 +2,12 @@ module Main where
 
 import Prelude
 
-import Control.Monad.Aff (Aff, launchAff_, makeAff)
+import Control.Monad.Aff (Aff, launchAff_)
 import Control.Monad.Aff.Console (errorShow, log)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
-import Control.Monad.Eff.Exception (EXCEPTION, Error)
+import Control.Monad.Eff.Exception (EXCEPTION)
+import Control.Monad.Eff.Ref (REF)
 import Control.Monad.Rec.Class (Step(..), tailRec)
 import Data.Array (find, head, length, snoc)
 import Data.Either (Either(..))
@@ -20,14 +21,14 @@ import Data.String.HtmlElements (decode)
 import Data.Traversable (for)
 import Data.Tuple (Tuple(..))
 import LenientHtmlParser (Attribute(..), Name(..), Tag(..), TagName(..), Value(..), parseTags)
-import Milkis (defaultFetchOptions, fetch, text)
-import Node.ChildProcess (CHILD_PROCESS, StdIOBehaviour(..), defaultSpawnOptions, onError, onExit, spawn, toStandardError)
+import Milkis as M
+import Node.ChildProcess as CP
 import Node.Encoding (Encoding(..))
 import Node.FS (FS)
 import Node.FS.Aff (readTextFile)
-import Node.HTTP (HTTP)
 import SQLite3 (DBConnection, DBEffects, closeDB, newDB, queryDB)
 import Simple.JSON (class ReadForeign, readJSON)
+import Sunde as Sunde
 import Text.Parsing.StringParser (ParseError)
 import Unsafe.Coerce (unsafeCoerce)
 
@@ -44,24 +45,28 @@ type Param = String
 runDownload :: forall e.
   Url ->
   Aff
-    ( cp :: CHILD_PROCESS
+    ( cp :: CP.CHILD_PROCESS
+    , exception :: EXCEPTION
+    , ref :: REF
     | e
     )
-    (Either Error String)
-runDownload (Url url) = makeAff \cb -> do
-  let cb' = cb <<< pure
-  process <- spawn "youtube-dl"
-             [ "-o"
-             , "downloads/%(title)s.%(ext)s"
-             , "-x"
-             , "--audio-format"
-             , "mp3"
-             , url
-             ]
-             $ defaultSpawnOptions { stdio = [Just Pipe] }
-  onError process $ toStandardError >>> Left >>> cb'
-  onExit process $ const (cb' $ Right "success?")
-  pure mempty
+    (Either String String)
+runDownload (Url url) = do
+  result <- Sunde.spawn
+    "youtube-dl"
+    [ "-o"
+    , "downloads/%(title)s.%(ext)s"
+    , "-x"
+    , "--audio-format"
+    , "mp3"
+    , url
+    ]
+    $ CP.defaultSpawnOptions
+        { stdio = [Just CP.Pipe]
+        }
+  pure case result.exit of
+    CP.Normally 0 -> Right "success?"
+    _ -> Left result.stderr
 
 type Config =
   { targets :: Array Url }
@@ -74,7 +79,7 @@ type Cast =
 data CastStatus
   = CastAlreadyDownloaded
   | CastDownloaded Cast
-  | CastDownloadFailed Error Cast
+  | CastDownloadFailed String Cast
 
 downloadCast ::
   forall e.
@@ -126,7 +131,7 @@ downloadCasts ::
     (Program e)
     (Array CastStatus)
 downloadCasts conn (Url url) = do
-  res <- text =<< fetch url defaultFetchOptions
+  res <- M.text =<< M.fetch (M.URL url) M.defaultFetchOptions
   case getCasts res of
     Right casts -> for casts $ downloadCast conn
     Left e -> do
@@ -134,9 +139,10 @@ downloadCasts conn (Url url) = do
       pure []
 
 type Program e =
-  ( http :: HTTP
-  , console :: CONSOLE
-  , cp :: CHILD_PROCESS
+  ( console :: CONSOLE
+  , cp :: CP.CHILD_PROCESS
+  , ref :: REF
+  , exception :: EXCEPTION
   , fs :: FS
   , db :: DBEffects
   | e

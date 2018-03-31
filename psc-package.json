@@ -1,20 +1,21 @@
 {
-    "name": "ytcasts",
-    "set": "mandel",
-    "source": "https://github.com/justinwoo/package-sets.git",
-    "depends": [
-        "node-he",
-        "lenient-html-parser",
-        "node-process",
-        "milkis",
-        "simple-json",
-        "foreign-generic",
-        "node-sqlite3",
-        "node-fs-aff",
-        "node-child-process",
-        "affjax",
-        "aff",
-        "console",
-        "prelude"
-    ]
+  "name": "ytcasts",
+  "set": "kefir",
+  "source": "https://github.com/justinwoo/package-sets.git",
+  "depends": [
+    "sunde",
+    "node-he",
+    "lenient-html-parser",
+    "node-process",
+    "milkis",
+    "simple-json",
+    "foreign-generic",
+    "node-sqlite3",
+    "node-fs-aff",
+    "node-child-process",
+    "affjax",
+    "aff",
+    "console",
+    "prelude"
+  ]
 }
