@@ -1,0 +1,14 @@
+language: node_js
+sudo: required
+dist: trusty
+node_js: 8
+cache:
+  directories:
+  - node_modules
+  - .psc-package
+install:
+  - npm install -g purescript@0.11.7 psc-package
+  - npm install
+  - psc-package install
+script:
+  - psc-package build
