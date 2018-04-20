@@ -28,14 +28,14 @@ import Node.Encoding (Encoding(..))
 import Node.FS (FS)
 import Node.FS.Aff (readTextFile)
 import SQLite3 (DBConnection, DBEffects, closeDB, newDB, queryDB)
-import Simple.JSON (class ReadForeign, readJSON)
 import Sunde as Sunde
 import Text.Parsing.StringParser (ParseError)
+import Tortellini (class ReadIniField, parsellIni)
 import Unsafe.Coerce (unsafeCoerce)
 
 newtype Url = Url String
 derive instance newtypeUrl :: Newtype Url _
-derive newtype instance readForeignUrl :: ReadForeign Url
+derive newtype instance asdfsdf :: ReadIniField Url
 
 type HTMLString = String
 
@@ -70,8 +70,10 @@ runDownload (Url url) = do
     _ -> Left result.stderr
 
 type Config =
-  { targets :: Array Url
-  , limit :: Int
+  { ytcasts ::
+      { targets :: Array Url
+      , limit :: Int
+      }
   }
 
 type Cast =
@@ -165,10 +167,10 @@ main :: forall e.
     (Program (exception :: EXCEPTION | e))
     Unit
 main = launchAff_ do
-  decoded <- readJSON <$> readTextFile UTF8 "./config.json"
+  decoded <- parsellIni <$> readTextFile UTF8 "./config.ini"
   case decoded of
     Right (config :: Config) -> do
-      bracket (newDB "./data") closeDB (withConn config)
+      bracket (newDB "./data") closeDB (withConn config.ytcasts)
     Left e -> do
       errorShow e
   where
@@ -180,6 +182,7 @@ main = launchAff_ do
       log $ "Found " <> show (List.length casts) <> " targets."
       log $ "Using limit " <> show config.limit <> "."
       traverse_ (downloadCast conn) (List.take config.limit casts)
+      log $ "Done."
 
     -- merge these damn lists
     merge :: List (List Cast) -> List Cast

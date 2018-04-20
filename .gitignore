@@ -5,7 +5,7 @@
 /.psci*
 /src/.webpack.js
 data
-config.json
+config.ini
 .psc-ide-port
 downloads/*
 !downloads/.gitkeep

@@ -1,14 +1,14 @@
 {
   "name": "ytcasts",
-  "set": "kefir",
+  "set": "tangsuyuk",
   "source": "https://github.com/justinwoo/package-sets.git",
   "depends": [
+    "tortellini",
     "sunde",
     "node-he",
     "lenient-html-parser",
     "node-process",
     "milkis",
-    "simple-json",
     "foreign-generic",
     "node-sqlite3",
     "node-fs-aff",
