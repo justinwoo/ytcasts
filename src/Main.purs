@@ -70,7 +70,9 @@ runDownload (Url url) = do
     _ -> Left result.stderr
 
 type Config =
-  { targets :: Array Url }
+  { targets :: Array Url
+  , limit :: Int
+  }
 
 type Cast =
   { title :: String
@@ -166,16 +168,18 @@ main = launchAff_ do
   decoded <- readJSON <$> readTextFile UTF8 "./config.json"
   case decoded of
     Right (config :: Config) -> do
-      bracket (newDB "./data") closeDB (withConn $ List.fromFoldable config.targets)
+      bracket (newDB "./data") closeDB (withConn config)
     Left e -> do
       errorShow e
   where
-    withConn targets conn = do
+    withConn config conn = do
       ensureDB conn
       log "Fetching targets..."
+      let targets = List.fromFoldable config.targets
       casts <- merge <$> traverse (fetchCasts conn) targets
       log $ "Found " <> show (List.length casts) <> " targets."
-      traverse_ (downloadCast conn) casts
+      log $ "Using limit " <> show config.limit <> "."
+      traverse_ (downloadCast conn) (List.take config.limit casts)
 
     -- merge these damn lists
     merge :: List (List Cast) -> List Cast
