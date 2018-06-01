@@ -2,12 +2,6 @@ module Main where
 
 import Prelude
 
-import Control.Monad.Aff (Aff, bracket, launchAff_)
-import Control.Monad.Aff.Console (errorShow, log)
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE)
-import Control.Monad.Eff.Exception (EXCEPTION)
-import Control.Monad.Eff.Ref (REF)
 import Control.Monad.Rec.Class (Step(..), tailRec)
 import Data.Array as Array
 import Data.Either (Either(..))
@@ -15,19 +9,22 @@ import Data.Foldable (and, find)
 import Data.List (List, (:))
 import Data.List as List
 import Data.Maybe (Maybe(Just), fromMaybe)
-import Data.Monoid (mempty)
 import Data.Newtype (class Newtype, unwrap)
 import Data.String (Pattern(..), contains, split, trim)
 import Data.String.HtmlElements (decode)
 import Data.Traversable (traverse, traverse_)
 import Data.Tuple (Tuple(Tuple))
+import Effect (Effect)
+import Effect.Aff (Aff, bracket, launchAff_)
+import Effect.Class (liftEffect)
+import Effect.Class.Console (errorShow, log)
 import LenientHtmlParser (Attribute(..), Name(..), Tag(..), TagName(..), Value(..), parseTags)
 import Milkis as M
+import Milkis.Impl.Node (nodeFetch)
 import Node.ChildProcess as CP
 import Node.Encoding (Encoding(..))
-import Node.FS (FS)
 import Node.FS.Aff (readTextFile)
-import SQLite3 (DBConnection, DBEffects, closeDB, newDB, queryDB)
+import SQLite3 (DBConnection, closeDB, newDB, queryDB)
 import Sunde as Sunde
 import Text.Parsing.StringParser (ParseError)
 import Tortellini (class ReadIniField, parsellIni)
@@ -43,15 +40,7 @@ type Query = String
 
 type Param = String
 
-runDownload :: forall e.
-  Url ->
-  Aff
-    ( cp :: CP.CHILD_PROCESS
-    , exception :: EXCEPTION
-    , ref :: REF
-    | e
-    )
-    (Either String String)
+runDownload :: Url -> Aff (Either String String)
 runDownload (Url url) = do
   result <- Sunde.spawn
     "youtube-dl"
@@ -86,13 +75,7 @@ data CastStatus
   | CastDownloaded Cast
   | CastDownloadFailed String Cast
 
-downloadCast ::
-  forall e.
-  DBConnection ->
-  Cast ->
-  Aff
-    (Program e)
-    CastStatus
+downloadCast :: DBConnection -> Cast -> Aff CastStatus
 downloadCast conn cast = do
   exists <- (\rows -> 1 == Array.length (unsafeCoerce rows)) <$> queryDB conn "SELECT 1 from downloads where link = ?" [unwrap cast.link]
   case exists of
@@ -128,15 +111,9 @@ getCasts s = do
         matchName (Attribute (Name name) _) = match == name
         getValue (Attribute _ (Value x)) = decode <<< trim $ x
 
-fetchCasts ::
-  forall e.
-  DBConnection ->
-  Url ->
-  Aff
-    (Program e)
-    (List Cast)
+fetchCasts :: DBConnection -> Url -> Aff (List Cast)
 fetchCasts conn (Url url) = do
-  res <- M.text =<< M.fetch (M.URL url) M.defaultFetchOptions
+  res <- M.text =<< M.fetch nodeFetch (M.URL url) M.defaultFetchOptions
   case getCasts res of
     Right casts ->
       pure casts
@@ -144,7 +121,7 @@ fetchCasts conn (Url url) = do
       errorShow e
       pure mempty
 
-ensureDB :: forall e. DBConnection -> Aff (Program e) Unit
+ensureDB :: DBConnection -> Aff Unit
 ensureDB conn =
   void $ queryDB conn """
 CREATE TABLE IF NOT EXISTS downloads
@@ -152,25 +129,12 @@ CREATE TABLE IF NOT EXISTS downloads
 """ []
 
 
-type Program e =
-  ( console :: CONSOLE
-  , cp :: CP.CHILD_PROCESS
-  , ref :: REF
-  , exception :: EXCEPTION
-  , fs :: FS
-  , db :: DBEffects
-  | e
-  )
-
-main :: forall e.
-  Eff
-    (Program (exception :: EXCEPTION | e))
-    Unit
+main :: Effect Unit
 main = launchAff_ do
   decoded <- parsellIni <$> readTextFile UTF8 "./config.ini"
   case decoded of
     Right (config :: Config) -> do
-      bracket (newDB "./data") closeDB (withConn config.ytcasts)
+      bracket (newDB "./data") (liftEffect <<< closeDB) (withConn config.ytcasts)
     Left e -> do
       errorShow e
   where
