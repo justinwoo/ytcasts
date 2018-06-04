@@ -1,15 +1,14 @@
 {
   "name": "ytcasts",
-  "set": "muer",
+  "set": "mine-12",
   "source": "https://github.com/justinwoo/package-sets.git",
   "depends": [
+    "node-he",
     "tortellini",
     "sunde",
-    "node-he",
     "lenient-html-parser",
     "node-process",
     "milkis",
-    "foreign-generic",
     "node-sqlite3",
     "node-fs-aff",
     "node-child-process",
