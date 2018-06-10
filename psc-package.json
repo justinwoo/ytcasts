@@ -1,6 +1,6 @@
 {
   "name": "ytcasts",
-  "set": "mine-12",
+  "set": "spetzle",
   "source": "https://github.com/justinwoo/package-sets.git",
   "depends": [
     "node-he",
