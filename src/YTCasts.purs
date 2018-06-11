@@ -111,8 +111,8 @@ getCasts s = do
         matchName (Attribute (Name name) _) = match == name
         getValue (Attribute _ (Value x)) = decode <<< trim $ x
 
-fetchCasts :: DBConnection -> Url -> Aff (List Cast)
-fetchCasts conn (Url url) = do
+fetchCasts :: Url -> Aff (List Cast)
+fetchCasts (Url url) = do
   res <- M.text =<< M.fetch nodeFetch (M.URL url) M.defaultFetchOptions
   case getCasts res of
     Right casts ->
@@ -142,7 +142,7 @@ main = launchAff_ do
       ensureDB conn
       log "Fetching targets..."
       let targets = List.fromFoldable config.targets
-      casts <- merge <$> traverse (fetchCasts conn) targets
+      casts <- merge <$> traverse fetchCasts targets
       log $ "Found " <> show (List.length casts) <> " targets."
       log $ "Using limit " <> show config.limit <> "."
       traverse_ (downloadCast conn) (List.take config.limit casts)
