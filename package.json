@@ -9,7 +9,7 @@
   "scripts": {
     "start": "npm run build",
     "setupDB": "cat schema.sql | sqlite3 ./data",
-    "build": "pulp build -m YTCasts --to index.js"
+    "build": "pulp build --to index.js"
   },
   "author": "",
   "license": "MIT",
