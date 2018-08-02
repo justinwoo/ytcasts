@@ -27,12 +27,11 @@ import Node.FS.Aff (readTextFile)
 import SQLite3 (DBConnection, closeDB, newDB, queryDB)
 import Sunde as Sunde
 import Text.Parsing.StringParser (ParseError)
-import Tortellini (class ReadIniField, parsellIni)
+import Tortellini (parsellIni)
 import Unsafe.Coerce (unsafeCoerce)
 
 newtype Url = Url String
 derive instance newtypeUrl :: Newtype Url _
-derive newtype instance asdfsdf :: ReadIniField Url
 
 type HTMLString = String
 
@@ -60,7 +59,7 @@ runDownload (Url url) = do
 
 type Config =
   { ytcasts ::
-      { targets :: Array Url
+      { channels :: Array String
       , limit :: Int
       }
   }
@@ -128,6 +127,9 @@ CREATE TABLE IF NOT EXISTS downloads
 (link varchar(20) primary key unique, title varchar, created datetime);
 """ []
 
+prepareURL :: String -> Url
+prepareURL channel =
+  Url $ "https://www.youtube.com/user/" <> channel <> "/videos"
 
 main :: Effect Unit
 main = launchAff_ do
@@ -141,7 +143,7 @@ main = launchAff_ do
     withConn config conn = do
       ensureDB conn
       log "Fetching targets..."
-      let targets = List.fromFoldable config.targets
+      let targets = List.fromFoldable $ prepareURL <$> config.channels
       casts <- merge <$> traverse fetchCasts targets
       log $ "Found " <> show (List.length casts) <> " targets."
       log $ "Using limit " <> show config.limit <> "."
