@@ -1,7 +1,7 @@
 {
   "name": "ytcasts",
-  "set": "spetzle",
-  "source": "https://github.com/justinwoo/package-sets.git",
+  "set": "190818",
+  "source": "https://github.com/justinwoo/spacchetti.git",
   "depends": [
     "node-he",
     "tortellini",
