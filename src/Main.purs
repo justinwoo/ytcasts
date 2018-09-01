@@ -59,7 +59,8 @@ runDownload (Url url) = do
 
 type Config =
   { ytcasts ::
-      { channels :: Array String
+      { users :: Array String
+      , channels :: Array String
       , limit :: Int
       }
   }
@@ -127,9 +128,11 @@ CREATE TABLE IF NOT EXISTS downloads
 (link varchar(20) primary key unique, title varchar, created datetime);
 """ []
 
-prepareURL :: String -> Url
-prepareURL channel =
-  Url $ "https://www.youtube.com/user/" <> channel <> "/videos"
+type Prefix = String
+
+prepareURL :: Prefix -> String -> Url
+prepareURL prefix target =
+  Url $ "https://www.youtube.com/" <> prefix <> "/" <> target <> "/videos"
 
 main :: Effect Unit
 main = launchAff_ do
@@ -143,7 +146,11 @@ main = launchAff_ do
     withConn config conn = do
       ensureDB conn
       log "Fetching targets..."
-      let targets = List.fromFoldable $ prepareURL <$> config.channels
+      let
+        channels = prepareURL "user" <$> config.users
+        users = prepareURL "channel" <$> config.channels
+        targets = List.fromFoldable $ channels <> users
+
       casts <- merge <$> traverse fetchCasts targets
       log $ "Found " <> show (List.length casts) <> " targets."
       log $ "Using limit " <> show config.limit <> "."
