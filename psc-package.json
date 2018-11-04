@@ -1,6 +1,6 @@
 {
   "name": "ytcasts",
-  "set": "190818",
+  "set": "241018",
   "source": "https://github.com/justinwoo/spacchetti.git",
   "depends": [
     "node-he",

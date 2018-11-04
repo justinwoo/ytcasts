@@ -16,7 +16,6 @@ import Data.Traversable (traverse, traverse_)
 import Data.Tuple (Tuple(Tuple))
 import Effect (Effect)
 import Effect.Aff (Aff, bracket, launchAff_)
-import Effect.Class (liftEffect)
 import Effect.Class.Console (errorShow, log)
 import LenientHtmlParser (Attribute(..), Name(..), Tag(..), TagName(..), Value(..), parseTags)
 import Milkis as M
@@ -139,7 +138,7 @@ main = launchAff_ do
   decoded <- parsellIni <$> readTextFile UTF8 "./config.ini"
   case decoded of
     Right (config :: Config) -> do
-      bracket (newDB "./data") (liftEffect <<< closeDB) (withConn config.ytcasts)
+      bracket (newDB "./data") closeDB (withConn config.ytcasts)
     Left e -> do
       errorShow e
   where

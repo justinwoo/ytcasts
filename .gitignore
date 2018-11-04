@@ -12,3 +12,4 @@ downloads/*
 index.js
 yarn.lock
 .psc-package
+.psc-package2nix
